@@ -43,6 +43,30 @@ function runMigrations() {
     endTime TEXT,
     logJSON TEXT
   )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS ai_config (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    ai_enabled INTEGER NOT NULL DEFAULT 1
+  )`);
+  db.run('INSERT OR IGNORE INTO ai_config (id, ai_enabled) VALUES (1, 1)');
+}
+
+function getAiConfig() {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT id, ai_enabled FROM ai_config WHERE id = 1', [], (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+}
+
+function updateAiConfig(enabled) {
+  return new Promise((resolve, reject) => {
+    db.run('UPDATE ai_config SET ai_enabled = ? WHERE id = 1', [enabled ? 1 : 0], function (err) {
+      if (err) return reject(err);
+      getAiConfig().then(resolve, reject);
+    });
+  });
 }
 
 // Helper to adjust a player's balance and stats atomically
@@ -62,4 +86,4 @@ function adjustBalance(color, delta) {
   });
 }
 
-module.exports = { db, adjustBalance };
+module.exports = { db, adjustBalance, getAiConfig, updateAiConfig };
