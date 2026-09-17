@@ -1,9 +1,16 @@
 // src/db/database.js
 const path = require('path');
+const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 require('dotenv').config();
 
 const dbPath = process.env.DB_PATH || path.resolve(__dirname, '../../db.sqlite');
+
+// Ensure the directory exists (required on Render where it may not be present)
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
 
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
