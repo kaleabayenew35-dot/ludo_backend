@@ -20,7 +20,7 @@ app.use('/api/game', gameRouter);
 app.use('/api/player', playerRouter);
 app.use('/api/admin', adminRouter);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Ludo backend listening on port ${PORT}`);
 });
