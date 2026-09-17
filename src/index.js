@@ -16,6 +16,7 @@ const gameRouter = require('./routes/game');
 const playerRouter = require('./routes/player');
 const adminRouter = require('./routes/admin');
 const aiRouter = require('./routes/ai');
+const { databaseReady } = require('./db/database');
 
 app.use('/api/game', gameRouter);
 app.use('/api/player', playerRouter);
@@ -23,6 +24,14 @@ app.use('/api/admin', adminRouter);
 app.use('/api/ai', aiRouter);
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Ludo backend listening on port ${PORT}`);
-});
+
+databaseReady
+  .then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Ludo backend listening on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Ludo backend startup failed:', err);
+    process.exit(1);
+  });

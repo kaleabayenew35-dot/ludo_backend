@@ -1,89 +1,94 @@
-// src/db/database.js
-const path = require('path');
-const fs = require('fs');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 require('dotenv').config();
 
-const dbPath = process.env.DB_PATH || path.resolve(__dirname, '../../db.sqlite');
-
-// Ensure the directory exists (required on Render where it may not be present)
-const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
+const configuredDatabaseUrl = process.env.DATABASE_URL?.trim();
+if (process.env.NODE_ENV === 'production' && !configuredDatabaseUrl) {
+  throw new Error('DATABASE_URL is required in production. Add the PostgreSQL connection string to the Render environment variables.');
 }
-
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Failed to open SQLite DB:', err);
-  } else {
-    console.log('Connected to SQLite DB at', dbPath);
-    runMigrations();
-  }
+const DATABASE_URL = configuredDatabaseUrl || 'postgresql://postgres:password@localhost:5432/ludo';
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false },
+  max: 10,
+  connectionTimeoutMillis: 10000,
 });
 
-function runMigrations() {
-  // Players table
-  db.run(`CREATE TABLE IF NOT EXISTS players (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    color TEXT NOT NULL UNIQUE,
-    balance INTEGER DEFAULT 500,
-    wins INTEGER DEFAULT 0,
-    losses INTEGER DEFAULT 0,
-    totalWon INTEGER DEFAULT 0,
-    totalLost INTEGER DEFAULT 0
-  )`);
+pool.on('error', (err) => console.error('PostgreSQL pool error:', err.message));
 
-  // Games table (basic columns)
-  db.run(`CREATE TABLE IF NOT EXISTS games (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    winnerColor TEXT,
-    bet INTEGER DEFAULT 0,
-    startTime TEXT,
-    endTime TEXT,
-    logJSON TEXT
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS ai_config (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    ai_enabled INTEGER NOT NULL DEFAULT 1
-  )`);
-  db.run('INSERT OR IGNORE INTO ai_config (id, ai_enabled) VALUES (1, 1)');
+function convertParams(sql, params = []) {
+  let index = 0;
+  return sql.replace(/\?/g, () => `$${++index}`);
 }
 
-function getAiConfig() {
-  return new Promise((resolve, reject) => {
-    db.get('SELECT id, ai_enabled FROM ai_config WHERE id = 1', [], (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
+async function query(text, params = []) {
+  return pool.query(convertParams(text, params), params);
+}
+
+async function runMigrations() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS players (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL UNIQUE,
+      balance INTEGER NOT NULL DEFAULT 500,
+      wins INTEGER NOT NULL DEFAULT 0,
+      losses INTEGER NOT NULL DEFAULT 0,
+      "totalWon" INTEGER NOT NULL DEFAULT 0,
+      "totalLost" INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS games (
+      id SERIAL PRIMARY KEY,
+      "winnerColor" TEXT,
+      bet INTEGER NOT NULL DEFAULT 0,
+      "startTime" TEXT,
+      "endTime" TEXT,
+      "logJSON" TEXT
+    )
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS ai_config (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      ai_enabled INTEGER NOT NULL DEFAULT 1
+    )
+  `);
+  await query('INSERT INTO ai_config (id, ai_enabled) VALUES (1, 1) ON CONFLICT (id) DO NOTHING');
+}
+
+const databaseReady = runMigrations()
+  .then(() => console.log('PostgreSQL migrations complete'))
+  .catch((err) => {
+    console.error('PostgreSQL migration failed:', err);
+    throw err;
   });
+
+async function getAiConfig() {
+  await databaseReady;
+  const { rows } = await query('SELECT id, ai_enabled FROM ai_config WHERE id = 1');
+  return rows[0] || null;
 }
 
-function updateAiConfig(enabled) {
-  return new Promise((resolve, reject) => {
-    db.run('UPDATE ai_config SET ai_enabled = ? WHERE id = 1', [enabled ? 1 : 0], function (err) {
-      if (err) return reject(err);
-      getAiConfig().then(resolve, reject);
-    });
-  });
+async function updateAiConfig(enabled) {
+  await databaseReady;
+  await query('UPDATE ai_config SET ai_enabled = $1 WHERE id = 1', [enabled ? 1 : 0]);
+  return getAiConfig();
 }
 
-// Helper to adjust a player's balance and stats atomically
-function adjustBalance(color, delta) {
-  const sql = `UPDATE players SET balance = balance + ?,
-               wins = wins + CASE WHEN ? > 0 THEN 1 ELSE 0 END,
-               losses = losses + CASE WHEN ? < 0 THEN 1 ELSE 0 END,
-               totalWon = totalWon + CASE WHEN ? > 0 THEN ? ELSE 0 END,
-               totalLost = totalLost + CASE WHEN ? < 0 THEN -? ELSE 0 END
-               WHERE color = ?`;
-  const params = [delta, delta, delta, delta, delta, delta, delta, color];
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve(this.changes);
-    });
-  });
+async function adjustBalance(color, delta) {
+  await databaseReady;
+  const { rowCount } = await query(`
+    UPDATE players
+    SET balance = balance + $1,
+        wins = wins + CASE WHEN $2 > 0 THEN 1 ELSE 0 END,
+        losses = losses + CASE WHEN $3 < 0 THEN 1 ELSE 0 END,
+        "totalWon" = "totalWon" + CASE WHEN $4 > 0 THEN $5 ELSE 0 END,
+        "totalLost" = "totalLost" + CASE WHEN $6 < 0 THEN -$7 ELSE 0 END
+    WHERE color = $8
+  `, [delta, delta, delta, delta, delta, delta, delta, color]);
+  return rowCount;
 }
 
-module.exports = { db, adjustBalance, getAiConfig, updateAiConfig };
+module.exports = { pool, query, databaseReady, getAiConfig, updateAiConfig, adjustBalance };
