@@ -2,9 +2,6 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 const configuredDatabaseUrl = process.env.DATABASE_URL?.trim();
-if (process.env.NODE_ENV === 'production' && !configuredDatabaseUrl) {
-  throw new Error('DATABASE_URL is required in production. Add the PostgreSQL connection string to the Render environment variables.');
-}
 const DATABASE_URL = configuredDatabaseUrl || 'postgresql://postgres:password@localhost:5432/ludo';
 const pool = new Pool({
   connectionString: DATABASE_URL,

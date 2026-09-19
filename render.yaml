@@ -8,13 +8,13 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        sync: false
+        value: postgresql://neondb_owner:npg_WLrdT5HX8yAi@ep-restless-frost-b5uyjx4q-pooler.c-7.us-east-2.aws.neon.tech/ludo?sslmode=require&channel_binding=require
       - key: ADMIN_TOKEN
         value: ludo-admin-secret-change-me
       - key: SYSTEM_BACKEND_URL
         value: https://system-backend-1u5m.onrender.com
       - key: BACKEND_URL
-        value: https://ludo-backend-wykz.onrender.com
+        value: https://ludo-backend-g2ir.onrender.com
       - key: FRONTEND_URL
         value: https://ludo-gtlb.onrender.com
       - key: CORS_ORIGINS
