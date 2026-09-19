@@ -14,7 +14,7 @@ services:
       - key: SYSTEM_BACKEND_URL
         value: https://system-backend-1u5m.onrender.com
       - key: BACKEND_URL
-        value: https://ludo-backend-g2ir.onrender.com
+        value: https://ludo-backend-wykz.onrender.com
       - key: FRONTEND_URL
         value: https://ludo-gtlb.onrender.com
       - key: CORS_ORIGINS
