@@ -37,6 +37,11 @@ async function runMigrations() {
       "totalLost" INTEGER NOT NULL DEFAULT 0
     )
   `);
+  await query('ALTER TABLE players ADD COLUMN IF NOT EXISTS selected_bet_amount INTEGER');
+  await query('ALTER TABLE players ADD COLUMN IF NOT EXISTS draws INTEGER NOT NULL DEFAULT 0');
+  await query("ALTER TABLE players ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'online'");
+  await query('ALTER TABLE players ADD COLUMN IF NOT EXISTS is_demo INTEGER NOT NULL DEFAULT 0');
+  await query('ALTER TABLE players ADD COLUMN IF NOT EXISTS is_ai INTEGER NOT NULL DEFAULT 0');
 
   await query(`
     CREATE TABLE IF NOT EXISTS games (

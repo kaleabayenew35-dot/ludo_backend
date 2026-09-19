@@ -3,6 +3,30 @@ const express = require('express');
 const router = express.Router();
 const { query, databaseReady, adjustBalance } = require('../db/database');
 
+// Public lobby feed. Demo and AI rows are excluded at the database boundary.
+router.get('/', async (req, res) => {
+  try {
+    await databaseReady;
+    const values = [];
+    const filters = ["COALESCE(is_demo, 0) = 0", "COALESCE(is_ai, 0) = 0", "COALESCE(status, 'online') = 'online'"];
+    const bet = Number(req.query.bet);
+    if (Number.isFinite(bet) && bet > 0) {
+      values.push(bet);
+      filters.push(`selected_bet_amount = $${values.length}`);
+    }
+    const result = await query(`
+      SELECT id, name, color, wins, losses, COALESCE(draws, 0) AS draws,
+             selected_bet_amount, status, is_demo, is_ai
+      FROM players
+      WHERE ${filters.join(' AND ')}
+      ORDER BY id
+    `, values);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET a single player's record by colour
 router.get('/:color', async (req, res) => {
   const color = req.params.color;
