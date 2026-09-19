@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: ludo-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_TOKEN
+        value: ludo-admin-secret-change-me
+      - key: SYSTEM_BACKEND_URL
+        value: https://system-backend-1u5m.onrender.com
+      - key: BACKEND_URL
+        value: https://ludo-backend-g2ir.onrender.com
+      - key: FRONTEND_URL
+        value: https://ludo-gtlb.onrender.com
+      - key: CORS_ORIGINS
+        value: https://ludo-gtlb.onrender.com,https://system-admin-iou9.onrender.com,https://system-backend-1u5m.onrender.com
