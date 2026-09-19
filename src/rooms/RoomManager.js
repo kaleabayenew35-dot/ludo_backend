@@ -56,6 +56,9 @@ class RoomManager {
 
   /**
    * Add a player to a room.
+   * The first player to join creates the room (0→1) and it becomes visible
+   * to everyone in the tier. The countdown only starts when MIN_TO_START
+   * (2) players are present.
    * Returns { ok, error?, room? }
    */
   joinRoom(roomId, player) {
@@ -64,24 +67,27 @@ class RoomManager {
     if (room.status === 'started') return { ok: false, error: 'Game already started' };
     if (room.players.length >= MAX_PLAYERS) return { ok: false, error: 'Room is full' };
 
-    // Prevent duplicate socket joins
+    // Prevent duplicate socket joins (idempotent)
     const already = room.players.find(p => p.socketId === player.socketId);
-    if (already) return { ok: true, room: this._safe(room) }; // idempotent
+    if (already) return { ok: true, room: this._safe(room) };
 
-    // Also prevent duplicate by name (one session per player)
+    // Prevent duplicate by name (one slot per player)
     const nameClash = room.players.find(p => p.name === player.name);
     if (nameClash) return { ok: false, error: 'Already in room' };
 
     room.players.push({ ...player });
 
+    // Broadcast immediately so all viewers see the new player (even 1 player)
+    this._broadcast(room);
+
+    // Only start countdown once we have the minimum player count
     if (room.players.length >= MIN_TO_START && room.status === 'waiting') {
       this._startCountdown(room);
     } else if (room.status === 'countdown') {
-      // Reset timer on each new joiner
+      // Reset timer on each new joiner so latecomers get a fair window
       this._resetCountdown(room);
     }
 
-    this._broadcast(room);
     return { ok: true, room: this._safe(room) };
   }
 
