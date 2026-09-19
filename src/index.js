@@ -48,6 +48,39 @@ app.use('/api/player', playerRouter);
 app.use('/api/admin',  adminRouter);
 app.use('/api/ai',     aiRouter);
 
+// ── REST endpoints for rooms (no socket needed) ───────────────────────────
+
+// GET /api/rooms?bet=10  → returns all 5 rooms for that bet tier
+app.get('/api/rooms', (req, res) => {
+  const bet = Number(req.query.bet);
+  if (!bet) return res.status(400).json({ error: 'bet query param required' });
+  const rooms = roomManager.getRoomsForBet(bet);
+  res.json({ ok: true, rooms });
+});
+
+// POST /api/rooms/:roomId/join  → join via HTTP (fallback when socket slow)
+// Body: { player: { name, wins, losses, balance } }
+app.post('/api/rooms/:roomId/join', (req, res) => {
+  const { roomId } = req.params;
+  const { player }  = req.body;
+  if (!player?.name) return res.status(400).json({ error: 'player.name required' });
+  // Use a stable HTTP-based socketId derived from name so leaveBySocket works on disconnect
+  const httpId = `http-${player.name}`;
+  const result = roomManager.joinRoom(roomId, { ...player, socketId: httpId });
+  if (!result.ok) return res.status(400).json({ error: result.error });
+  res.json({ ok: true, room: result.room });
+});
+
+// POST /api/rooms/:roomId/leave  → leave via HTTP
+// Body: { name }
+app.post('/api/rooms/:roomId/leave', (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'name required' });
+  const httpId = `http-${name}`;
+  roomManager.leaveBySocketId(httpId);
+  res.json({ ok: true });
+});
+
 // ── Socket.io ─────────────────────────────────────────────────────────────
 const io = new Server(server, {
   cors: corsOptions,

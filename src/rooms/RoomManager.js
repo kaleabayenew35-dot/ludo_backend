@@ -96,6 +96,10 @@ class RoomManager {
    * Returns the roomId they were in (or null).
    */
   leaveBySocket(socketId) {
+    return this.leaveBySocketId(socketId);
+  }
+
+  leaveBySocketId(socketId) {
     for (const room of Object.values(this.rooms)) {
       const idx = room.players.findIndex(p => p.socketId === socketId);
       if (idx === -1) continue;
