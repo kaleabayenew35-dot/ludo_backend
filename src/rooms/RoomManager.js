@@ -176,13 +176,14 @@ class RoomManager {
     const payload = { roomId: room.id, betAmount: room.betAmount, players };
     this.io.to(`bet-${room.betAmount}`).emit('room:started', payload);
 
-    // Reset room for next game after a short delay
+    // Keep the started state visible long enough for every polling client to
+    // receive the transition before making the room available again.
     setTimeout(() => {
       room.players   = [];
       room.status    = 'waiting';
       room.countdown = 0;
       this._broadcast(room);
-    }, 5000);
+    }, 20000);
   }
 
   // ── Emit helpers ──────────────────────────────────────────────────────────
