@@ -184,6 +184,28 @@ class RoomManager {
       seatIndex: index,
     }));
 
+    room.players = colorizedPlayers;
+    room.game = {
+      roomId: room.id,
+      started: true,
+      active: true,
+      turn: 0,
+      diceValue: 0,
+      rolled: false,
+      pieces: {
+        red: [-1, -1, -1, -1],
+        blue: [-1, -1, -1, -1],
+        green: [-1, -1, -1, -1],
+        yellow: [-1, -1, -1, -1],
+      },
+      finished: { red: 0, blue: 0, green: 0, yellow: 0 },
+      eliminated: { red: false, blue: false, green: false, yellow: false },
+      winnerColor: null,
+      log: [`Game started in room ${room.id}`],
+      updatedAt: Date.now(),
+      players: colorizedPlayers,
+    };
+
     // Broadcast start event to everyone watching this room's bet tier
     // and directly to players in the room
     const payload = {
@@ -191,17 +213,10 @@ class RoomManager {
       betAmount: room.betAmount,
       players: colorizedPlayers,
       colorOrder,
+      game: room.game,
     };
     this.io.to(`bet-${room.betAmount}`).emit('room:started', payload);
-
-    // Keep the started state visible long enough for every polling client to
-    // receive the transition before making the room available again.
-    setTimeout(() => {
-      room.players   = [];
-      room.status    = 'waiting';
-      room.countdown = 0;
-      this._broadcast(room);
-    }, 20000);
+    this.io.to(`room-${room.id}`).emit('game:state', room.game);
   }
 
   // ── Emit helpers ──────────────────────────────────────────────────────────
@@ -214,7 +229,11 @@ class RoomManager {
   _safe(room) {
     // Strip internal _timer reference from the object sent to clients
     const { _timer, ...safe } = room;
-    return { ...safe, players: room.players.map(p => ({ ...p })) };
+    return {
+      ...safe,
+      players: room.players.map(p => ({ ...p })),
+      game: room.game ? { ...room.game, players: (room.game.players || []).map(p => ({ ...p })) } : undefined,
+    };
   }
 }
 

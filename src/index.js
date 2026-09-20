@@ -113,8 +113,37 @@ io.on('connection', socket => {
     } else {
       // Track which room this socket is in so we can clean up on disconnect
       socket._ludoRoomId = roomId;
+      socket.join(`room-${roomId}`);
       socket.emit('room:joined', { room: result.room });
+      if (result.room?.game) {
+        socket.emit('game:state', result.room.game);
+      }
     }
+  });
+
+  socket.on('game:join', ({ roomId, player }) => {
+    if (!roomId || !player?.name) return;
+    socket.join(`room-${roomId}`);
+    socket._ludoRoomId = roomId;
+    const room = roomManager.getRoom(roomId);
+    if (room?.game) {
+      socket.emit('game:state', room.game);
+    }
+  });
+
+  socket.on('game:state:update', ({ roomId, state }) => {
+    if (!roomId || !state) return;
+    const room = roomManager.rooms[roomId];
+    if (!room || room.status !== 'started') return;
+    room.game = {
+      ...room.game,
+      ...(state || {}),
+      roomId,
+      updatedAt: Date.now(),
+      players: room.players || room.game?.players || [],
+    };
+    thisLogger = this;
+    io.to(`room-${roomId}`).emit('game:state', room.game);
   });
 
   // ── Client leaves a room explicitly ──────────────────────────────────────
