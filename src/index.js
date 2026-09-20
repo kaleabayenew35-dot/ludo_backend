@@ -188,16 +188,14 @@ io.on('connection', socket => {
     console.log(`[socket] game:over room=${roomId} reset=${wasReset}`);
   });
 
-  // ── Relay a discrete game action (dice roll / piece move) to all other
-  //    players in the same room without touching the stored game state.
-  //    The full state sync via game:state:update handles consistency. ────────
-  socket.on('game:action', ({ roomId, action }) => {
-    if (!roomId || !action) return;
-    const room = roomManager.rooms[roomId];
-    if (!room || room.status !== 'started') return;
-    // Relay to everyone else in the room — the sender gets their own echo
-    // filtered client-side by comparing socketId.
-    socket.to(`room-${roomId}`).emit('game:action', { roomId, action });
+  // ── Player intentionally left mid-game — relay win to remaining players ──
+  socket.on('game:player:left', (payload) => {
+    if (!payload?.roomId) return;
+    // Tell everyone else in the room so they can show the win modal
+    socket.to(`room-${payload.roomId}`).emit('game:player:left', payload);
+    // Reset the room after 4s so both clients have time to show their modals
+    setTimeout(() => roomManager.resetRoom(payload.roomId), 4000);
+    console.log(`[socket] game:player:left room=${payload.roomId} player=${payload.leavingName}`);
   });
 
   // ── Disconnect cleanup ────────────────────────────────────────────────────
