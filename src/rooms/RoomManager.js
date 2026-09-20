@@ -118,16 +118,41 @@ class RoomManager {
 
       room.players.splice(idx, 1);
 
-      if (room.players.length < MIN_TO_START && room.status === 'countdown') {
+      if (room.status === 'countdown' && room.players.length < MIN_TO_START) {
         this._stopCountdown(room);
         room.status    = 'waiting';
         room.countdown = 0;
+      } else if (room.status === 'started' && room.players.length < MIN_TO_START) {
+        // All players left a started game — reset the room entirely
+        this._resetRoom(room);
+        return room.id;
       }
 
       this._broadcast(room);
       return room.id;
     }
     return null;
+  }
+
+  /**
+   * Fully reset a room after a game ends or all players leave.
+   * Called externally (game:over / HTTP /end) or internally when the
+   * last player disconnects from a started game.
+   */
+  resetRoom(roomId) {
+    const room = this.rooms[roomId];
+    if (!room) return false;
+    this._resetRoom(room);
+    return true;
+  }
+
+  _resetRoom(room) {
+    this._stopCountdown(room);
+    room.status    = 'waiting';
+    room.countdown = 0;
+    room.players   = [];
+    room.game      = undefined;
+    this._broadcast(room);
   }
 
   // ── Countdown machinery ───────────────────────────────────────────────────

@@ -81,6 +81,15 @@ app.post('/api/rooms/:roomId/leave', (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /api/rooms/:roomId/end  → game ended, reset room to 'waiting'
+// Called by the frontend when the game finishes (win, lose, or forfeit).
+app.post('/api/rooms/:roomId/end', (req, res) => {
+  const { roomId } = req.params;
+  const wasReset = roomManager.resetRoom(roomId);
+  console.log(`[http] /rooms/${roomId}/end reset=${wasReset}`);
+  res.json({ ok: true, reset: wasReset });
+});
+
 // ── Socket.io ─────────────────────────────────────────────────────────────
 const io = new Server(server, {
   cors: corsOptions,
@@ -150,6 +159,13 @@ io.on('connection', socket => {
   socket.on('room:leave', () => {
     roomManager.leaveBySocket(socket.id);
     socket._ludoRoomId = null;
+  });
+
+  // ── Game over: reset room back to waiting so new players can join ─────────
+  socket.on('game:over', ({ roomId }) => {
+    if (!roomId) return;
+    const wasReset = roomManager.resetRoom(roomId);
+    console.log(`[socket] game:over room=${roomId} reset=${wasReset}`);
   });
 
   // ── Disconnect cleanup ────────────────────────────────────────────────────
