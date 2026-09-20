@@ -144,14 +144,26 @@ io.on('connection', socket => {
     if (!roomId || !state) return;
     const room = roomManager.rooms[roomId];
     if (!room || room.status !== 'started') return;
+
+    // The server is the authority on turn. Only accept a state update if it
+    // carries a newer timestamp than what the room already has — this stops
+    // an older broadcast from rolling back the turn counter.
+    const incomingTs  = Number(state.updatedAt) || 0;
+    const existingTs  = Number(room.game?.updatedAt) || 0;
+    if (incomingTs < existingTs) {
+      // Still relay the authoritative room state back to the sender so their
+      // local turn display snaps to the correct value.
+      socket.emit('game:state', room.game);
+      return;
+    }
+
     room.game = {
       ...room.game,
       ...(state || {}),
       roomId,
-      updatedAt: Date.now(),
+      updatedAt: incomingTs || Date.now(),
       players: room.players || room.game?.players || [],
     };
-    thisLogger = this;
     io.to(`room-${roomId}`).emit('game:state', room.game);
   });
 
@@ -174,6 +186,18 @@ io.on('connection', socket => {
     if (!roomId) return;
     const wasReset = roomManager.resetRoom(roomId);
     console.log(`[socket] game:over room=${roomId} reset=${wasReset}`);
+  });
+
+  // ── Relay a discrete game action (dice roll / piece move) to all other
+  //    players in the same room without touching the stored game state.
+  //    The full state sync via game:state:update handles consistency. ────────
+  socket.on('game:action', ({ roomId, action }) => {
+    if (!roomId || !action) return;
+    const room = roomManager.rooms[roomId];
+    if (!room || room.status !== 'started') return;
+    // Relay to everyone else in the room — the sender gets their own echo
+    // filtered client-side by comparing socketId.
+    socket.to(`room-${roomId}`).emit('game:action', { roomId, action });
   });
 
   // ── Disconnect cleanup ────────────────────────────────────────────────────
