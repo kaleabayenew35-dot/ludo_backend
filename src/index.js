@@ -155,6 +155,13 @@ io.on('connection', socket => {
     io.to(`room-${roomId}`).emit('game:state', room.game);
   });
 
+  socket.on('game:action', ({ roomId, action }) => {
+    if (!roomId || !action) return;
+    const room = roomManager.rooms[roomId];
+    if (!room || room.status !== 'started') return;
+    socket.to(`room-${roomId}`).emit('game:action', { roomId, action });
+  });
+
   // ── Client leaves a room explicitly ──────────────────────────────────────
   socket.on('room:leave', () => {
     roomManager.leaveBySocket(socket.id);
