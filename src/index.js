@@ -159,7 +159,8 @@ io.on('connection', socket => {
     if (!roomId || !action) return;
     const room = roomManager.rooms[roomId];
     if (!room || room.status !== 'started') return;
-    socket.to(`room-${roomId}`).emit('game:action', { roomId, action });
+    const enrichedAction = { ...action, socketId: socket.id, ts: Date.now() };
+    io.to(`room-${roomId}`).emit('game:action', { roomId, action: enrichedAction });
   });
 
   // ── Client leaves a room explicitly ──────────────────────────────────────
