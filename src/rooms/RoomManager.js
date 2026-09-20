@@ -14,6 +14,13 @@ const COUNTDOWN_SECS  = 30;
 const MIN_TO_START    = 2;
 const MAX_PLAYERS     = 4;
 
+function getColorOrderForPlayerCount(playerCount) {
+  const safeCount = Math.min(Math.max(Number(playerCount) || 2, 2), 4);
+  if (safeCount === 2) return ['red', 'yellow'];
+  if (safeCount === 3) return ['yellow', 'red', 'green'];
+  return ['yellow', 'blue', 'green', 'red'];
+}
+
 class RoomManager {
   constructor(io) {
     this.io    = io;
@@ -170,10 +177,21 @@ class RoomManager {
     room.status    = 'started';
     room.countdown = 0;
     const players  = room.players.map(p => ({ ...p }));
+    const colorOrder = getColorOrderForPlayerCount(players.length);
+    const colorizedPlayers = players.map((player, index) => ({
+      ...player,
+      color: colorOrder[index] || colorOrder[colorOrder.length - 1],
+      seatIndex: index,
+    }));
 
     // Broadcast start event to everyone watching this room's bet tier
     // and directly to players in the room
-    const payload = { roomId: room.id, betAmount: room.betAmount, players };
+    const payload = {
+      roomId: room.id,
+      betAmount: room.betAmount,
+      players: colorizedPlayers,
+      colorOrder,
+    };
     this.io.to(`bet-${room.betAmount}`).emit('room:started', payload);
 
     // Keep the started state visible long enough for every polling client to
@@ -200,4 +218,11 @@ class RoomManager {
   }
 }
 
-module.exports = { RoomManager, ROOMS_PER_TIER, COUNTDOWN_SECS, MAX_PLAYERS, MIN_TO_START };
+module.exports = {
+  RoomManager,
+  ROOMS_PER_TIER,
+  COUNTDOWN_SECS,
+  MAX_PLAYERS,
+  MIN_TO_START,
+  getColorOrderForPlayerCount,
+};
