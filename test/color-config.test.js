@@ -2,8 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { getColorOrderForPlayerCount } = require('../src/rooms/RoomManager');
 
-test('2-player games use red and yellow only', () => {
-  assert.deepEqual(getColorOrderForPlayerCount(2), ['red', 'yellow']);
+test('2-player games use red/yellow or green/blue by room', () => {
+  assert.deepEqual(getColorOrderForPlayerCount(2, '10-1'), ['red', 'yellow']);
+  assert.deepEqual(getColorOrderForPlayerCount(2, '10-2'), ['green', 'blue']);
 });
 
 test('3-player games use yellow, red, green', () => {

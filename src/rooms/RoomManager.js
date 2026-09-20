@@ -14,9 +14,14 @@ const COUNTDOWN_SECS  = 30;
 const MIN_TO_START    = 2;
 const MAX_PLAYERS     = 4;
 
-function getColorOrderForPlayerCount(playerCount) {
+function getColorOrderForPlayerCount(playerCount, roomId) {
   const safeCount = Math.min(Math.max(Number(playerCount) || 2, 2), 4);
-  if (safeCount === 2) return ['red', 'yellow'];
+  if (safeCount === 2) {
+    const roomNumber = Number(String(roomId || '').split('-').pop());
+    return Number.isInteger(roomNumber) && roomNumber % 2 === 0
+      ? ['green', 'blue']
+      : ['red', 'yellow'];
+  }
   if (safeCount === 3) return ['yellow', 'red', 'green'];
   return ['yellow', 'blue', 'green', 'red'];
 }
@@ -177,7 +182,7 @@ class RoomManager {
     room.status    = 'started';
     room.countdown = 0;
     const players  = room.players.map(p => ({ ...p }));
-    const colorOrder = getColorOrderForPlayerCount(players.length);
+    const colorOrder = getColorOrderForPlayerCount(players.length, room.id);
     const colorizedPlayers = players.map((player, index) => ({
       ...player,
       color: colorOrder[index] || colorOrder[colorOrder.length - 1],
