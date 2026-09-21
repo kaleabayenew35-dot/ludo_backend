@@ -37,16 +37,18 @@ app.use(express.json());
 app.use('/admin', express.static(path.join(__dirname, '..', '..', 'admin')));
 
 // ── HTTP Routes ───────────────────────────────────────────────────────────
-const gameRouter   = require('./routes/game');
-const playerRouter = require('./routes/player');
-const adminRouter  = require('./routes/admin');
-const aiRouter     = require('./routes/ai');
+const gameRouter       = require('./routes/game');
+const playerRouter     = require('./routes/player');
+const adminRouter      = require('./routes/admin');
+const aiRouter         = require('./routes/ai');
+const settlementRouter = require('./routes/settlement');
 const { databaseReady } = require('./db/database');
 
-app.use('/api/game',   gameRouter);
-app.use('/api/player', playerRouter);
-app.use('/api/admin',  adminRouter);
-app.use('/api/ai',     aiRouter);
+app.use('/api/game',       gameRouter);
+app.use('/api/player',     playerRouter);
+app.use('/api/admin',      adminRouter);
+app.use('/api/ai',         aiRouter);
+app.use('/api/settlement', settlementRouter);
 
 // ── REST endpoints for rooms (no socket needed) ───────────────────────────
 
