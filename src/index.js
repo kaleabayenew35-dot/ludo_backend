@@ -191,11 +191,19 @@ io.on('connection', socket => {
   // ── Player intentionally left mid-game — relay win to remaining players ──
   socket.on('game:player:left', (payload) => {
     if (!payload?.roomId) return;
-    // Tell everyone else in the room so they can show the win modal
+    const room = roomManager.rooms[payload.roomId];
+    if (!room) return;
+    // Relay to remaining players so they show toast + remove pieces
     socket.to(`room-${payload.roomId}`).emit('game:player:left', payload);
-    // Reset the room after 4s so both clients have time to show their modals
-    setTimeout(() => roomManager.resetRoom(payload.roomId), 4000);
-    console.log(`[socket] game:player:left room=${payload.roomId} player=${payload.leavingName}`);
+    // Count how many players are still connected after this leave
+    const remaining = (room.players || []).filter(
+      p => p.name !== payload.leavingName
+    ).length;
+    // Only reset the room if 0 or 1 player remain (game over)
+    if (remaining <= 1) {
+      setTimeout(() => roomManager.resetRoom(payload.roomId), 4000);
+    }
+    console.log(`[socket] game:player:left room=${payload.roomId} player=${payload.leavingName} remaining=${remaining}`);
   });
 
   // ── Disconnect cleanup ────────────────────────────────────────────────────
